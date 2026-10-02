@@ -25,7 +25,14 @@ export const Login: React.FC = () => {
       toastSuccess('Welcome back!')
       navigate('/')
     } catch (err: any) {
-      const msg = err.response?.data?.detail || err.response?.data?.error || 'Invalid email or password.'
+      console.error('Login error details:', err)
+      const msg =
+        err.response?.data?.detail ||
+        err.response?.data?.message ||
+        err.response?.data?.error ||
+        (err.code === 'ERR_NETWORK' || err.message === 'Network Error'
+          ? 'Network Error: Cannot connect to the backend server. Please check backend deployment status.'
+          : 'Invalid email or password.')
       toastError(typeof msg === 'string' ? msg : 'Login failed. Please try again.')
     } finally {
       setIsSubmitting(false)

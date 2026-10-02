@@ -18,7 +18,19 @@ import type {
   HistoryListResponse,
 } from '@/types'
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || '/api/v1'
+function getApiBaseUrl(): string {
+  const envUrl = import.meta.env.VITE_API_URL
+  if (!envUrl || envUrl.trim() === '') {
+    return '/api/v1'
+  }
+  const cleanUrl = envUrl.trim().replace(/\/+$/, '')
+  if (cleanUrl.endsWith('/api/v1')) {
+    return cleanUrl
+  }
+  return `${cleanUrl}/api/v1`
+}
+
+export const API_BASE_URL = getApiBaseUrl()
 
 export const api = axios.create({
   baseURL: API_BASE_URL,
