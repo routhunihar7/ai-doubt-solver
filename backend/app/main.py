@@ -45,15 +45,26 @@ app = FastAPI(
 # CORS Configuration
 origins = settings.CORS_ORIGINS
 if isinstance(origins, str):
-    origins = [o.strip() for o in origins.split(",")]
+    origins = [o.strip() for o in origins.split(",") if o.strip()]
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=origins if origins else ["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+if not origins or "*" in origins:
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origin_regex=r"^https?://.*",
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+        expose_headers=["*"],
+    )
+else:
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=origins,
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+        expose_headers=["*"],
+    )
 
 # Exception Handlers
 app.add_exception_handler(StarletteHTTPException, http_exception_handler)
