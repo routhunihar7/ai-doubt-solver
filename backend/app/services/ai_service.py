@@ -13,12 +13,10 @@ logger = logging.getLogger(__name__)
 T = TypeVar("T", bound=BaseModel)
 
 FALLBACK_MODELS = [
-    "openai/gpt-oss-120b",
-    "openai/gpt-oss-20b",
     "qwen/qwen3.8-27b",
+    "openai/gpt-oss-20b",
+    "openai/gpt-oss-120b",
     "allam-2-7b",
-    "llama-3.3-70b-versatile",
-    "llama-3.1-8b-instant",
 ]
 
 class AIService:
@@ -29,12 +27,12 @@ class AIService:
 
     def _init_client(self):
         if settings.GROQ_API_KEY and settings.GROQ_API_KEY.strip() != "":
-            self._client = AsyncGroq(api_key=settings.GROQ_API_KEY)
+            self._client = AsyncGroq(api_key=settings.GROQ_API_KEY, timeout=30.0)
         else:
             self._client = None
 
     def _clean_json_response(self, text: str) -> str:
-        """Extract valid JSON from potential markdown formatting."""
+        """Extract valid JSON from potential markdown formatting or reasoning."""
         text = text.strip()
         # Remove ```json ... ``` code blocks if present
         json_match = re.search(r'```(?:json)?\s*([\s\S]*?)\s*```', text)
@@ -44,6 +42,17 @@ class AIService:
         # If wrapped in single backticks
         if text.startswith("`") and text.endswith("`"):
             text = text.strip("`").strip()
+
+        # Find first { and last } (or first [ and last ])
+        start_brace = text.find('{')
+        end_brace = text.rfind('}')
+        start_bracket = text.find('[')
+        end_bracket = text.rfind(']')
+
+        if start_brace != -1 and end_brace != -1 and (start_bracket == -1 or start_brace < start_bracket):
+            return text[start_brace:end_brace + 1].strip()
+        elif start_bracket != -1 and end_bracket != -1:
+            return text[start_bracket:end_bracket + 1].strip()
             
         return text
 
@@ -51,7 +60,7 @@ class AIService:
         self,
         messages: List[Dict[str, str]],
         temperature: float = 0.5,
-        max_tokens: int = 1500,
+        max_tokens: int = 3500,
         model: Optional[str] = None
     ) -> str:
         """Execute chat completion against Groq API with smart model fallback."""
@@ -95,7 +104,7 @@ class AIService:
         system_prompt: str,
         schema_cls: Type[T],
         temperature: float = 0.3,
-        retries: int = 2
+        retries: int = 1
     ) -> T:
         """Generate structured JSON and validate using Pydantic."""
         schema_json = json.dumps(schema_cls.model_json_schema(), indent=2)
@@ -117,7 +126,8 @@ class AIService:
             try:
                 raw_text = await self.chat_completion(
                     messages=messages,
-                    temperature=temperature
+                    temperature=temperature,
+                    max_tokens=3500
                 )
                 cleaned = self._clean_json_response(raw_text)
                 parsed = json.loads(cleaned)
@@ -129,10 +139,10 @@ class AIService:
                 messages.append({"role": "assistant", "content": raw_text if 'raw_text' in locals() else ""})
                 messages.append({
                     "role": "user",
-                    "content": f"The previous output was not valid JSON matching the schema ({e}). Please fix it and return strictly the valid JSON object."
+                    "content": f"The previous output was not valid JSON ({e}). Output strictly the raw JSON object without extra text."
                 })
 
-        raise ValueError(f"Failed to generate valid structured data after {retries} retries: {last_error}")
+        raise ValueError(f"Failed to generate valid structured data: {last_error}")
 
     def generate_embedding(self, text: str, dimensions: int = 128) -> List[float]:
         """
