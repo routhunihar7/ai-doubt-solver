@@ -2,6 +2,7 @@ import React, { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '@/contexts/AuthContext'
 import { useToast } from '@/contexts/ToastContext'
+import { API_BASE_URL } from '@/services/api'
 import { Sparkles, Mail, Lock, User, Target, ArrowRight, Loader2 } from 'lucide-react'
 
 export const Register: React.FC = () => {
@@ -38,14 +39,24 @@ export const Register: React.FC = () => {
       navigate('/')
     } catch (err: any) {
       console.error('Registration error details:', err)
-      const msg =
-        err.response?.data?.detail ||
-        err.response?.data?.message ||
-        err.response?.data?.error ||
-        (err.code === 'ERR_NETWORK' || err.message === 'Network Error'
-          ? 'Network Error: Cannot connect to the backend server. Please check backend deployment status.'
-          : 'Registration failed. Please try again.')
-      toastError(typeof msg === 'string' ? msg : 'Registration failed. Try a different email.')
+      let msg = ''
+      if (err.response?.data) {
+        msg =
+          err.response.data.detail ||
+          err.response.data.error ||
+          err.response.data.message ||
+          (Array.isArray(err.response.data.details) ? err.response.data.details[0] : null)
+      }
+      
+      if (!msg) {
+        if (err.code === 'ERR_NETWORK' || err.message === 'Network Error' || !err.response) {
+          msg = `Connection Error: Unable to reach backend at ${API_BASE_URL}. Please verify Railway backend is deployed and VITE_API_URL is correct.`
+        } else {
+          msg = err.message || 'Registration failed. Please try again.'
+        }
+      }
+      
+      toastError(typeof msg === 'string' ? msg : JSON.stringify(msg))
     } finally {
       setIsSubmitting(false)
     }
