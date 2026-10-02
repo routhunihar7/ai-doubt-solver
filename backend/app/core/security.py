@@ -38,7 +38,7 @@ def create_access_token(
         "iat": now,
         "type": "access_token"
     }
-    encoded_jwt = jwt.encode(to_encode, settings.JWT_SECRET, algorithm=settings.ALGORITHM)
+    encoded_jwt = jwt.encode(to_encode, settings.effective_jwt_secret, algorithm=settings.ALGORITHM)
     return encoded_jwt
 
 def decode_access_token(token: str) -> Optional[dict]:
@@ -46,7 +46,7 @@ def decode_access_token(token: str) -> Optional[dict]:
     try:
         payload = jwt.decode(
             token,
-            settings.JWT_SECRET,
+            settings.effective_jwt_secret,
             algorithms=[settings.ALGORITHM]
         )
         return payload

@@ -17,8 +17,13 @@ class Settings(BaseSettings):
     
     # Security
     JWT_SECRET: str = "super-secret-production-grade-key-ai-doubt-solver-2026-x99"
+    SECRET_KEY: str = ""
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 7  # 7 days
+
+    @property
+    def effective_jwt_secret(self) -> str:
+        return self.SECRET_KEY if self.SECRET_KEY else self.JWT_SECRET
     
     # Database
     DATABASE_URL: str = Field(
